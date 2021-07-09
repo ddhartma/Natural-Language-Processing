@@ -456,6 +456,8 @@ After cleaning the text corpus one can start with word2vec operations.
 | Skip-gram (SG) | context words via target word| Better for small text corpus, good representation of rare words |
 | CBOW | target word via context words | faster, slightly better representation of common words |
 
+![image10]
+
 ## Execute word2vec <a id="execute_word2vec"></a> 
 - Open Jupyter Notebook ```natural_language_preprocessing```
 
