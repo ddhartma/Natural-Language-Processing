@@ -59,6 +59,13 @@ Please check my [Data Science - NLP](https://github.com/ddhartma/NLP-Pipelines) 
     - [Standardizing the Length of the Reviews](#standardize_imdb)
     - [Dense Network](#dense_net)
     - [Convolutional Networks](#conv_net)
+- [Networks Designed for Sequential Data](#network_seq)
+    - [Recurrent Neural Networks (RNNs)](#rnn)
+    - [Long Short-Term Memory Units (LSTMs)](#lstm) 
+    - [Bidirectional LSTMs](#bidirec_lstm)
+    - [Stacked Recurrent Models](#stacked_rnn) 
+    - [Seq2seq and Attention](#seq2seq_attentiom)
+    - [Transfer Learning in NLP](#transfer_learn_nlp)
 
 - [Setup Instructions](#Setup_Instructions)
 - [Acknowledgments](#Acknowledgments)
@@ -1050,6 +1057,173 @@ After cleaning the text corpus one can start with word2vec operations.
     - Reasons: 
         - Better recognition of word sequences like 'not good'.
         - Better transfer performance: 'not great' should have similar locations in the word vector space as 'not good'.
+
+# Networks Designed for Sequential Data <a id="network_seq"></a> 
+- The kernels of Convolutional Neural Networks are good to learn short sequences, e.g. a group of three words.
+- However, in NLP word sequences are normally much longer
+- Let's introduce:
+    - Recurrent Neural Networks (RNNs)
+    - Long Short-Term Memory Units (LSTMs)
+    - Gated Recurrent Units (GRUs)
+    - Attention
+- Typical Applications: 1D Data Sequences like
+    - Stock prices 
+    - Selling price
+    - Temperatures
+    - Disease rates
+
+## Recurrent Neural Networks (RNNs) <a id="rnn"></a> 
+Take a look at the sentence:
+**Jon and Grant are writing a book together. They have really enjoyed writing it.**
+
+- The principal structure of a RNN is shown below
+
+    ![image11]
+
+    - Grey line indicates data push from step to step
+    - Similar to FC networks, there is exactly one neuron for each input.
+    - Additionally: Each Recurrent Modul receives info from previous modul. This information from previous time steps. For example: The RNN learns to associate 'They' with 'Jon and Grant'.
+
+- Learning process:
+    - Like in Feeforward networks RNNs learn via Backpropagation. However, in RNNs the error is not only backpropagated to the input layer but also via all (i.e. previous) time steps of the recurrent layers. 
+    - Later time steps have more influence on predictions then previous ones.
+
+- Open Jupyter Notebook ```rnn_sentiment_classifier.ipynb```.
+    ### Load dependencies
+    ```
+    import keras
+    from keras.datasets import imdb
+    from keras.preprocessing.sequence import pad_sequences
+    from keras.models import Sequential
+    from keras.layers import Dense, Dropout, Embedding, SpatialDropout1D
+    from keras.layers import SimpleRNN # new! 
+    from keras.callbacks import ModelCheckpoint
+    import os
+    from sklearn.metrics import roc_auc_score 
+    import matplotlib.pyplot as plt 
+    %matplotlib inline
+    ```
+    ### Set hyperparameters
+    - max_review_length: 100, for a simple RNN it could still be too excessive due to Vanishing Gradients (better with LSTMs)
+    - n_rnn: 256, recurrent layer has 256 units. This allows the RNN to identify 256 unique sequences word meanings which are relevant to analyze the  sentiment of the review. This is similar to 256 convolutional kernels in a CNN model, which specialize to identify on 256 unique three-word-groups
+
+    ```
+    # output directory name:
+    output_dir = 'model_output/rnn'
+
+    # training:
+    epochs = 16 # way more!
+    batch_size = 128
+
+    # vector-space embedding: 
+    n_dim = 64 
+    n_unique_words = 10000 
+    max_review_length = 100 # lowered due to vanishing gradient over time
+    pad_type = trunc_type = 'pre'
+    drop_embed = 0.2 
+
+    # RNN layer architecture:
+    n_rnn = 256 
+    drop_rnn = 0.2
+
+    # dense layer architecture: 
+    # n_dense = 256
+    # dropout = 0.2
+    ```
+    ### Load data
+    ```
+    (x_train, y_train), (x_valid, y_valid) = imdb.load_data(num_words=n_unique_words) # removed n_words_to_skip
+    ```
+    ### Preprocess Data
+    ```
+    x_train = pad_sequences(x_train, maxlen=max_review_length, padding=pad_type, truncating=trunc_type, value=0)
+    x_valid = pad_sequences(x_valid, maxlen=max_review_length, padding=pad_type, truncating=trunc_type, value=0)
+    ```
+    ### Design neural network architecture
+    ```
+    model = Sequential()
+    model.add(Embedding(n_unique_words, n_dim, input_length=max_review_length)) 
+    model.add(SpatialDropout1D(drop_embed))
+    model.add(SimpleRNN(n_rnn, dropout=drop_rnn))
+    # model.add(Dense(n_dense, activation='relu')) # typically don't see top dense layer in NLP like in 
+    # model.add(Dropout(dropout))
+    model.add(Dense(1, activation='sigmoid'))
+
+    model.summary()  
+
+    RESULTS:
+    ------------
+    _________________________________________________________________
+    Layer (type)                 Output Shape              Param #   
+    =================================================================
+    embedding_1 (Embedding)      (None, 100, 64)           640000    
+    _________________________________________________________________
+    spatial_dropout1d_1 (Spatial (None, 100, 64)           0         
+    _________________________________________________________________
+    simple_rnn_1 (SimpleRNN)     (None, 256)               82176     
+    _________________________________________________________________
+    dense_1 (Dense)              (None, 1)                 257       
+    =================================================================
+    Total params: 722,433
+    Trainable params: 722,433
+    Non-trainable params: 0
+    ```
+    ### Compile model
+    ```
+    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+    modelcheckpoint = ModelCheckpoint(filepath=output_dir+"/weights.{epoch:02d}.hdf5")
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    ```
+    ### Train
+    ```
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1, validation_data=(x_valid, y_valid), callbacks=[modelcheckpoint])
+
+    RESULTS:
+    ------------
+    Epoch 16/16
+    25000/25000 [==============================] - 17s 672us/step - loss: 0.4012 - acc: 0.8309 - val_loss: 0.5920 - val_acc: 0.7510
+    ```
+    ### Evaluate
+    ```
+    model.load_weights(output_dir+"/weights.07.hdf5") 
+    y_hat = model.predict_proba(x_valid)
+
+    plt.hist(y_hat)
+    _ = plt.axvline(x=0.5, color='orange')
+    ```
+
+    ![image12]
+
+    ### ROC AUC:
+    ```
+    "{:0.2f}".format(roc_auc_score(y_valid, y_hat)*100.0)
+
+    RESULTS:
+    ------------
+    '84.94'
+    ```
+    ### Reason for bad performance:
+    - It is believed that Vanishing Gradient effects to to a long max_review_length=100 are too strong
+    - Maybe one should reduce (not checked) max_review_length to 10.
+
+
+## Long Short-Term Memory Units (LSTMs) <a id="lstm"></a> 
+- Simple RNNs are sufficient for short sequences in the range of 10 time steps. 
+- Use LSTMs for longer sequences.
+### Principal structure:
+- The principal structure is identical to simple RNNs
+- LSTMs get inputs 
+    - from the sequence and
+    - from previous time steps
+- The difference:
+    - RNN: In each cell of the recurrent layer there is only on activation function like a Tanh-function
+    - LSTM: a more complex dstructure of gating functions. 
+## Bidirectional LSTMs <a id="bidirec_lstm"></a> 
+## Stacked Recurrent Models <a id="stacked_rnn"></a>  
+## Seq2seq and Attention <a id="seq2seq_attentiom"></a>  
+## Transfer Learning in NLP <a id="transfer_learn_nlp"></a>  
 
 ## Setup Instructions <a id="Setup_Instructions"></a>
 The following is a brief set of instructions on setting up a cloned repository.
