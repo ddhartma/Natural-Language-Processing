@@ -50,6 +50,15 @@ Please check my [Data Science - NLP](https://github.com/ddhartma/NLP-Pipelines) 
     - [Principal idea of word2vec](#idea_word2vec)
     - [Execute word2vec](#execute_word2vec)
     - [Plot word vectors](#plot_word_vecs)
+- [Receiver Operating Characteristic - ROC](#roc)
+    - [Truth table - Confusion matrix](#truth_table)
+    - [Calculating ROC-AUC-Metric](#roc_calc)
+- [Natural Language Classification with Familiar Networks](#nlp_class_a)
+    - [Loading the IMDB Film Reviews](#loading_imdb)
+    - [Examining the IMDB Data](#examine_imdb)
+    - [Standardizing the Length of the Reviews](#standardize_imdb)
+    - [Dense Network](#dense_net)
+    - [Convolutional Networks](#conv_net)
 
 - [Setup Instructions](#Setup_Instructions)
 - [Acknowledgments](#Acknowledgments)
@@ -568,7 +577,477 @@ After cleaning the text corpus one can start with word2vec operations.
     _ = p.text(x=subset_df.x, y=subset_df.y, text=subset_df.token)
     show(p)
     ```
+# Receiver Operating Characteristic - ROC <a id="roc"></a> 
+- Please check out my repo based on [Practical Statistics](https://github.com/ddhartma/Practical-Statistics#prec_and_recall) for further information
+- ROC AUC - Receiver Operating Characteristic (AUC = area under then curve)
+- Useful for binary classification
+- Example: Sentiment anlysis - Positive or Negativ Review?
+- Advantages:
+    - ROC AUC combines two metrics to one value:
+        - True-Positive-Rate
+        - False-Positive-Rate
+    - Qualifies the output of a binary classificator in the whole range between [0,1]. This is in contradiction to metric 'accuracy' which evaluates the performance only via a threshold (y=0.5).
 
+## Truth table - Confusion matrix <a id="truth_table"></a> 
+- Evaluation of: How confused is a model?
+
+    ![image5]
+
+    - <span style="color:green">**TP - True Positive**</span>: Your input belongs to class (label) 1 and the model predicts it correctly.
+    - <span style="color:red">**FP - False Positive**</span>: Your input belongs to class (label) 0 and the model predicts it incorrectly. Your model is confused.
+    - <span style="color:red">**FN - False Negative**</span>: Your input belongs to class (label) 1 and the model predicts it incorrectly. Your model is confused.
+    - <span style="color:green">**TN - True Negative**</span>: Your input belongs to class (label) 0 and the model predicts it correctly.
+
+
+## Calculating ROC-AUC-Metric <a id="roc_calc"></a> 
+- Let's start with an example: 
+    - Let's assume we have four inputs (e.g. images). Two of them are cats and the other two are not cats.
+    - For each input, we get a prediction from the model.
+
+    ![image6]
+
+    - In order to calculate the ROC-AUC-metric --> make classifications based on different thresholds (here 0.3, 0.5, 0.6) as shown in the table
+    - Then calculate the **True-Positive-Rate** and the **False-Positive-Rate** for each threshold as shown in the table
+    - Then draw a diagram:
+        1. (0, 0): lower left corner
+        2. (0, 0.5) for threshold 0.6
+        3. (0.5, 0.5) for threshold 0.5 
+        4. (0.5, 1) for threshold 0.3
+        5. (1, 1) upper right corner
+
+    ![image7]
+
+    - **In this plot 75% of the area are below the orange line**
+    - ROC-AUC metric = 0.75
+
+- In case of random: ROC-AUC metric = 0.5
+- A perfect ROC-AUC = 1 --> TPR=1 and FPR=0 for all thresholds
+
+
+# Natural Language Classification with Familiar Networks <a id="nlp_class_a"></a>  
+- Let's test the theory on a binary classification model: IMDb Sentiment Analysis
+- Let's predict if a film review is positive or negative.
+- Let's use:
+    - A neural Network with fully connceted (FC) layers
+    - A Convolutional Neural NEtwork (CNN)
+
+## Loading the IMDB Film Reviews <a id="loading_imdb"></a> 
+- Open Jupyter Notebook ```dense_sentiment_classifier.ipynb```
+    ### Load dependencies 
+    - output_dir: destination to save model parameters after each epoch
+    - epochs: number of epochs
+    - batch_size: the batch size for training 
+    - n_dim: number of dimensions for the word vector space
+    - n_unique_words: Sort every token based on frequency and then take only the most frequent words, e.g. n_unique_words = 5000
+    - n_words_to_skip: Consider that the most frequent words (like 'the', 'a', 'and' etc.) are normally stop words. Skip for example the first 50 most frequent words.
+    - max_review_length: All reviews must have the same length. For example set max_review_length to 100 words. Smaller reviews will be filled with Zeros (Padding).
+    - pad_type: 'pre' fill Padding zeros at the beginning of the review. 'post' fill Padding zeros at the end of the review. In case of Recurrent Neural Networks (RNN) use 'pre'.
+    - trunc_type: Cutting type for longer reviews --> 'pre' or 'post'
+    - n_dense: number of neurons of the dense hidden layer
+    - dropout: ratio of dropped out neurons per random 
+    ```
+    import keras
+    from keras.datasets import imdb # new! 
+    from keras.preprocessing.sequence import pad_sequences #new!
+    from keras.models import Sequential
+    from keras.layers import Dense, Flatten, Dropout
+    from keras.layers import Embedding # new!
+    from keras.callbacks import ModelCheckpoint # new! 
+    import os # new! 
+    from sklearn.metrics import roc_auc_score, roc_curve # new!
+    import pandas as pd
+    import matplotlib.pyplot as plt # new!
+    %matplotlib inline
+    ``` 
+    ### Set hyperparameters
+    ```
+    # output directory name:
+    output_dir = 'model_output/dense'
+
+    # training:
+    epochs = 4
+    batch_size = 128
+
+    # vector-space embedding: 
+    n_dim = 64
+    n_unique_words = 5000 # as per Maas et al. (2011); may not be optimal
+    n_words_to_skip = 50
+    max_review_length = 100
+    pad_type = trunc_type = 'pre'
+
+    # neural network architecture: 
+    n_dense = 64
+    dropout = 0.5
+    ```
+    ### Load data
+    - IMDb consists of 50000 film reviews
+    - Half of reviews used for training
+    - Half of reviews used for model validation
+    - reviews with four or less stars: NEGATIVE
+    - reviews with seven or more stars: POSITIVE
+    - reviews with five or six stars --> are dropped (no strong review) 
+    ```
+    (x_train, y_train), (x_valid, y_valid) = imdb.load_data(num_words=n_unique_words, 
+                                                        skip_top=n_words_to_skip) 
+    ```
+
+
+## Examining the IMDB Data <a id="examine_imdb"></a>  
+- Open Jupyter Notebook ```dense_sentiment_classifier.ipynb```
+    ### Take a look at the first 6 reviews(furst two are shown)
+    ```
+    x_train[0:6] # 0 reserved for padding; 1 would be starting character; 2 is unknown; 3 is most common word, etc.
+
+    RESULTS:
+    ------------
+    array([list([2, 2, 2, 2, 2, 530, 973, 1622, 1385, 65, 458, 4468, 66, 3941, 2, 173, 2, 256, 2, 2, 100, 2, 838, 112, 50, 670, 2, 2, 2, 480, 284, 2, 150, 2, 172, 112, 167, 2, 336, 385, 2, 2, 172, 4536, 1111, 2, 546, 2, 2, 447, 2, 192, 50, 2, 2, 147, 2025, 2, 2, 2, 2, 1920, 4613, 469, 2, 2, 71, 87, 2, 2, 2, 530, 2, 76, 2, 2, 1247, 2, 2, 2, 515, 2, 2, 2, 626, 2, 2, 2, 62, 386, 2, 2, 316, 2, 106, 2, 2, 2223, 2, 2, 480, 66, 3785, 2, 2, 130, 2, 2, 2, 619, 2, 2, 124, 51, 2, 135, 2, 2, 1415, 2, 2, 2, 2, 215, 2, 77, 52, 2, 2, 407, 2, 82, 2, 2, 2, 107, 117, 2, 2, 256, 2, 2, 2, 3766, 2, 723, 2, 71, 2, 530, 476, 2, 400, 317, 2, 2, 2, 2, 1029, 2, 104, 88, 2, 381, 2, 297, 98, 2, 2071, 56, 2, 141, 2, 194, 2, 2, 2, 226, 2, 2, 134, 476, 2, 480, 2, 144, 2, 2, 2, 51, 2, 2, 224, 92, 2, 104, 2, 226, 65, 2, 2, 1334, 88, 2, 2, 283, 2, 2, 4472, 113, 103, 2, 2, 2, 2, 2, 178, 2]),
+       list([2, 194, 1153, 194, 2, 78, 228, 2, 2, 1463, 4369, 2, 134, 2, 2, 715, 2, 118, 1634, 2, 394, 2, 2, 119, 954, 189, 102, 2, 207, 110, 3103, 2, 2, 69, 188, 2, 2, 2, 2, 2, 249, 126, 93, 2, 114, 2, 2300, 1523, 2, 647, 2, 116, 2, 2, 2, 2, 229, 2, 340, 1322, 2, 118, 2, 2, 130, 4901, 2, 2, 1002, 2, 89, 2, 952, 2, 2, 2, 455, 2, 2, 2, 2, 1543, 1905, 398, 2, 1649, 2, 2, 2, 163, 2, 3215, 2, 2, 1153, 2, 194, 775, 2, 2, 2, 349, 2637, 148, 605, 2, 2, 2, 123, 125, 68, 2, 2, 2, 349, 165, 4362, 98, 2, 2, 228, 2, 2, 2, 1157, 2, 299, 120, 2, 120, 174, 2, 220, 175, 136, 50, 2, 4373, 228, 2, 2, 2, 656, 245, 2350, 2, 2, 2, 131, 152, 491, 2, 2, 2, 2, 1212, 2, 2, 2, 371, 78, 2, 625, 64, 1382, 2, 2, 168, 145, 2, 2, 1690, 2, 2, 2, 1355, 2, 2, 2, 52, 154, 462, 2, 89, 78, 285, 2, 145, 95]),
+    ...   
+    ```
+    ### Check the length of the first six reviews
+    ```
+    for x in x_train[0:6]:
+        print(len(x))
+
+    RESULTS:
+    -----------
+    218
+    189
+    141
+    550
+    147
+    43
+    ```
+    ### The Labels
+    ```
+    y_train[0:6] 
+
+    RESULTS:
+    ------------
+    array([1, 0, 0, 1, 0, 0])
+    ```
+    ### Size of training and validation set
+    ```
+    len(x_train), len(x_valid)
+
+    RESULTS:
+    ------------
+    (25000, 25000)
+    ```
+    ### Restoring words from index (in order to read reviews)
+    ```
+    word_index = keras.datasets.imdb.get_word_index()
+    word_index = {k:(v+3) for k,v in word_index.items()}
+    word_index["PAD"] = 0
+    word_index["START"] = 1
+    word_index["UNK"] = 2
+
+    print(word_index)
+
+    RESULTS:
+    ------------
+    {'fawn': 34704,
+    'tsukino': 52009,
+    'nunnery': 52010,
+    'sonja': 16819,
+    'vani': 63954,
+    'woods': 1411,
+    'spiders': 16118,
+    'hanging': 2348,
+    'woody': 2292,
+    'trawling': 52011,
+    "hold's": 52012,
+    'comically': 11310,
+    'localized': 40833,
+    'disobeying': 30571,
+    "'royale": 52013,
+    "harpo's": 40834,
+    'canet': 52014,
+    ...
+    }
+    ```
+    ### The first review
+    ```
+    x_train[0] 
+
+    RESULTS:
+    ------------
+    [2,
+    2,
+    2,
+    2,
+    2,
+    530,
+    973,
+    1622,
+    1385,
+    65,
+    458,
+    4468,
+    66,
+    3941,
+    2,
+    173,
+    2,
+    256,
+    ...
+    ]
+    ```
+    ### Convert it back to readable text
+    ```
+    ' '.join(index_word[id] for id in x_train[0])
+
+    RESULTS:
+    ------------
+    "UNK UNK UNK UNK UNK brilliant casting location scenery story direction everyone's really suited UNK part UNK played UNK UNK could UNK imagine being there robert UNK UNK UNK amazing actor UNK now UNK same being director UNK father came UNK UNK same scottish island UNK myself UNK UNK loved UNK fact there UNK UNK real connection UNK UNK UNK UNK witty remarks throughout UNK UNK were great UNK UNK UNK brilliant UNK much UNK UNK bought UNK UNK UNK soon UNK UNK UNK released UNK UNK UNK would recommend UNK UNK everyone UNK watch UNK UNK fly UNK UNK amazing really cried UNK UNK end UNK UNK UNK sad UNK UNK know what UNK say UNK UNK cry UNK UNK UNK UNK must UNK been good UNK UNK definitely UNK also UNK UNK UNK two little UNK UNK played UNK UNK UNK norman UNK paul UNK were UNK brilliant children UNK often left UNK UNK UNK UNK list UNK think because UNK stars UNK play them UNK grown up UNK such UNK big UNK UNK UNK whole UNK UNK these children UNK amazing UNK should UNK UNK UNK what UNK UNK done don't UNK think UNK whole story UNK UNK lovely because UNK UNK true UNK UNK someone's life after UNK UNK UNK UNK UNK us UNK"
+    ```
+
+## Standardizing the Length of the Reviews <a id="standardize_imdb"></a>  
+- Open Jupyter Notebook ```dense_sentiment_classifier.ipynb```
+    ### Padding and Truncating reviews
+    ```
+    x_train = pad_sequences(x_train, maxlen=max_review_length, 
+                        padding=pad_type, truncating=trunc_type, value=0)
+    x_valid = pad_sequences(x_valid, maxlen=max_review_length, 
+                            padding=pad_type, truncating=trunc_type, value=0)
+
+    for x in x_train[0:6]:
+        print(len(x)) 
+
+    RESULTS:
+    ------------
+    100
+    100
+    100
+    100
+    100
+    100            
+    ```
+
+## Dense Network <a id="dense_net"></a> 
+- Open Jupyter Notebook ```dense_sentiment_classifier.ipynb```
+    ### Design a fully connected neural network architecture
+    - Embedding: it is a look up table with 5000 words. It will be trained via Gradient Descent. 
+    - Flatten: Needed to use a fully connected layer approach
+    - 1 Hidden layer
+    - Output via sigmoid  
+    ```
+    model = Sequential()
+    model.add(Embedding(n_unique_words, n_dim, input_length=max_review_length))
+    model.add(Flatten())
+    model.add(Dense(n_dense, activation='relu'))
+    model.add(Dropout(dropout))
+    # model.add(Dense(n_dense, activation='relu'))
+    # model.add(Dropout(dropout))
+    model.add(Dense(1, activation='sigmoid')) # mathematically equivalent to softmax with two classes
+    
+    model.summary() # so many parameters!
+
+    RESULTS:
+    ------------
+    _________________________________________________________________
+    Layer (type)                 Output Shape              Param #   
+    =================================================================
+    embedding_1 (Embedding)      (None, 100, 64)           320000    
+    _________________________________________________________________
+    flatten_1 (Flatten)          (None, 6400)              0         
+    _________________________________________________________________
+    dense_1 (Dense)              (None, 64)                409664    
+    _________________________________________________________________
+    dropout_1 (Dropout)          (None, 64)                0         
+    _________________________________________________________________
+    dense_2 (Dense)              (None, 1)                 65        
+    =================================================================
+    Total params: 729,729
+    Trainable params: 729,729
+    Non-trainable params: 0
+    ```
+
+    ### Explanation
+    - **embedding_1** has 320000 parameters: **n_dim** * **n_unique_words** = 64 * 5000
+    - **flatten_1** gets 6400 input values: 100 words of each review * 64 word vector dimensions
+    - **dense_1** has 409664 parameters to train --> 64 hidden neurons of dense_1 times 6400 values from the flatten layer.
+    - **dense_2** output layer has 65 parameters, one for activation of each neuron of the previous layer plus one Bias value.
+    - IN TOTAL: 730.000 parameters to train.
+
+    ### Compile the model
+    - Use **binary_crossentropy** instead of **categorical_crossentropy** (used for multi class problems)
+    - Store model parameters in **modelcheckpoint** after each epoch 
+    ```
+    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+    modelcheckpoint = ModelCheckpoint(filepath=output_dir+
+                                  "/weights.{epoch:02d}.hdf5")
+    ```
+    ### Start Training 
+    ```
+    model.fit(x_train, y_train, 
+          batch_size=batch_size, epochs=epochs, verbose=1, 
+          validation_data=(x_valid, y_valid), 
+          callbacks=[modelcheckpoint])
+
+    RESULTS:
+    ------------
+    ...
+    Epoch 4/4
+    25000/25000 [==============================] - 2s 70us/step - loss: 0.0237 - acc: 0.9961 - val_loss: 0.5304 - val_acc: 0.8340
+    ```
+    ### Evaluate
+    ```
+    # Load weights
+    model.load_weights(output_dir+"/weights.02.hdf5") # NOT zero-indexed
+
+    # Predict 
+    y_hat = model.predict_proba(x_valid)
+    print(len(y_hat))
+    RESULTS:
+    ------------
+    25000
+
+    # Draw a histogram
+    plt.hist(y_hat)
+    _ = plt.axvline(x=0.5, color='orange')
+    ```
+    ![image8]
+
+    - Approximately for 8000 reviews (out of 25000 --> 32%) the prediction is less than 0.1 (--> NEGATIVE review)
+    - Approximately for 6500 reviews (out of 25000 --> 26%) the prediction is larger than 0.9 (--> POSITIVE review)
+    - The orange line marks the **threshold** (0.5) for claassification
+    
+    ### Calculate ROC-AUC score:
+    ```
+    pct_auc = roc_auc_score(y_valid, y_hat)*100.0
+    "{:0.2f}".format(pct_auc) 
+
+    RESULTS:
+    ------------
+    '92.85'
+    ```
+
+## Convolutional Networks <a id="conv_net"></a> 
+- Let's use CNNs to detect spatial patterns in words, e.g. 'not good'
+    ### Load dependencies 
+    - Same as in [Dense Network](#dense_net)
+    - Additional: 
+    ```
+    from keras.layers import SpatialDropout1D, Conv1D, GlobalMaxPooling1D # new! 
+    ```
+    ### Set hyperparameters
+    - conv: directory to save model parameters 
+    ```
+    # output directory name:
+    output_dir = 'model_output/conv'
+
+    # training:
+    epochs = 4
+    batch_size = 128
+
+    # vector-space embedding: 
+    n_dim = 64
+    n_unique_words = 5000 
+    max_review_length = 400
+    pad_type = trunc_type = 'pre'
+    drop_embed = 0.2 # new!
+
+    # convolutional layer architecture:
+    n_conv = 256 # filters, a.k.a. kernels
+    k_conv = 3 # kernel length
+
+    # dense layer architecture: 
+    n_dense = 256
+    dropout = 0.2
+    ```
+    ### Explanation:
+    - max_review_length = 400: In the Dense layer approach we had 100. This increase is possible as the amount of parameters is drasrtically decreased by Convolutional layers.
+    - We still use an embedding layer
+    - Two hidden layers:
+        - one Conv1D layer: 
+            - 256 filter (n_conv) 
+            - kernel size: 3
+            - **Language is one dimensional (dimension of time)**
+            - Remember: Images are two dimensional (Conv2D)
+        - one FC layeer:
+            - 256 neurons
+            - dropout: 20%
+    ### Load and Preprocess data 
+    - Same as in [Dense Network](#dense_net)
+    
+    ### Design neural network architecture 
+    ```
+    model = Sequential()
+    model.add(Embedding(n_unique_words, n_dim, input_length=max_review_length)) 
+    model.add(SpatialDropout1D(drop_embed))
+    model.add(Conv1D(n_conv, k_conv, activation='relu'))
+    # model.add(Conv1D(n_conv, k_conv, activation='relu'))
+    model.add(GlobalMaxPooling1D())
+    model.add(Dense(n_dense, activation='relu'))
+    model.add(Dropout(dropout))
+    model.add(Dense(1, activation='sigmoid'))
+
+    model.summary() 
+
+    RESULTS:
+    ------------
+    _________________________________________________________________
+    Layer (type)                 Output Shape              Param #   
+    =================================================================
+    embedding_1 (Embedding)      (None, 400, 64)           320000    
+    _________________________________________________________________
+    spatial_dropout1d_1 (Spatial (None, 400, 64)           0         
+    _________________________________________________________________
+    conv1d_1 (Conv1D)            (None, 398, 256)          49408     
+    _________________________________________________________________
+    global_max_pooling1d_1 (Glob (None, 256)               0         
+    _________________________________________________________________
+    dense_1 (Dense)              (None, 256)               65792     
+    _________________________________________________________________
+    dropout_1 (Dropout)          (None, 256)               0         
+    _________________________________________________________________
+    dense_2 (Dense)              (None, 1)                 257       
+    =================================================================
+    Total params: 435,457
+    Trainable params: 435,457
+    Non-trainable params: 0
+    ```
+    ### Some explanations:
+    - Dropout is used after the Embedding layer
+    - No Flatten() approach is needed anymore --> Conv approach 
+    - Conv1D layer: this layer consists of 256 filters which learn to get active if if the kernel runs over a special sequence of three tokens
+    - In NLP global_max_pooling is common. This reduces the activation map from 256x398 to 256x1
+    - The whole network has 435457 parameter.
+
+    ### Compile, Train model
+    - Same as in [Dense Network](#dense_net)
+
+    ### Evaluate 
+
+    ```
+    ...
+
+    # Draw a histogram
+    plt.hist(y_hat)
+    _ = plt.axvline(x=0.5, color='orange')
+    ```
+    ![image9] 
+
+    Compared to the FC approach above:
+    - More reviews less than 0.1 (--> NEGATIVE review)
+    - More reviews larger than 0.9 (--> POSITIVE review)
+    - The orange line marks the **threshold** (0.5) for claassification
+    
+    ### Calculate ROC-AUC score:
+    ```
+    pct_auc = roc_auc_score(y_valid, y_hat)*100.0
+    "{:0.2f}".format(pct_auc) 
+
+    RESULTS:
+    ------------
+    '96.12'
+    ```
+    - The CNN approach is better than the FC approach.
+    - Reasons: 
+        - Better recognition of word sequences like 'not good'.
+        - Better transfer performance: 'not great' should have similar locations in the word vector space as 'not good'.
 
 ## Setup Instructions <a id="Setup_Instructions"></a>
 The following is a brief set of instructions on setting up a cloned repository.
