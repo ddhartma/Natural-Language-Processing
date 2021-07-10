@@ -1205,7 +1205,7 @@ Take a look at the sentence:
     '84.94'
     ```
     ### Reason for bad performance:
-    - It is believed that Vanishing Gradient effects to to a long max_review_length=100 are too strong
+    - It is believed that Vanishing Gradient effects due to a long max_review_length=100 are too strong.
     - Maybe one should reduce (not checked) max_review_length to 10.
 
 
