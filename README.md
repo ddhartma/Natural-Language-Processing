@@ -62,9 +62,9 @@ Please check my [Data Science - NLP](https://github.com/ddhartma/NLP-Pipelines) 
 - [Networks Designed for Sequential Data](#network_seq)
     - [Recurrent Neural Networks (RNNs)](#rnn)
     - [Long Short-Term Memory Units (LSTMs)](#lstm) 
-    - [Bidirectional LSTMs](#bidirec_lstm)
+    - [Bidirectional LSTMs (Bi-LSTMs)](#bidirec_lstm)
     - [Stacked Recurrent Models](#stacked_rnn) 
-    - [Seq2seq and Attention](#seq2seq_attentiom)
+    - [seq2seq and Attention](#seq2seq_attentiom)
     - [Transfer Learning in NLP](#transfer_learn_nlp)
 
 - [Setup Instructions](#Setup_Instructions)
@@ -1080,12 +1080,12 @@ Take a look at the sentence:
 
     ![image11]
 
-    - Grey line indicates data push from step to step
+    - Grey line indicates a data push from step to step.
     - Similar to FC networks, there is exactly one neuron for each input.
-    - Additionally: Each Recurrent Modul receives info from previous modul. This information from previous time steps. For example: The RNN learns to associate 'They' with 'Jon and Grant'.
+    - Additionally: Each recurrent modul receives information from the previous modul (collected information from previous time steps). For example: The RNN learns to associate 'They' with 'Jon and Grant'.
 
 - Learning process:
-    - Like in Feeforward networks RNNs learn via Backpropagation. However, in RNNs the error is not only backpropagated to the input layer but also via all (i.e. previous) time steps of the recurrent layers. 
+    - Like in feedforward networks RNNs learn via Backpropagation. However, in RNNs the error is not only backpropagated to the input layer but also via all (i.e. previous) time steps of the recurrent layers. 
     - Later time steps have more influence on predictions then previous ones.
 
 - Open Jupyter Notebook ```rnn_sentiment_classifier.ipynb```.
@@ -1210,20 +1210,282 @@ Take a look at the sentence:
 
 
 ## Long Short-Term Memory Units (LSTMs) <a id="lstm"></a> 
+- Interesting article: [Understanding LSTM Networks](https://colah.github.io/posts/2015-08-Understanding-LSTMs/)
 - Simple RNNs are sufficient for short sequences in the range of 10 time steps. 
 - Use LSTMs for longer sequences.
 ### Principal structure:
-- The principal structure is identical to simple RNNs
+- The principal structure is identical to simple RNNs. It is a special kind of RNN, **capable of learning long-term dependencies**. LSTMs are explicitly designed to avoid the long-term dependency problem.
+- They were introduced by Hochreiter & Schmidhuber (1997).
 - LSTMs get inputs 
     - from the sequence and
     - from previous time steps
 - The difference:
-    - RNN: In each cell of the recurrent layer there is only on activation function like a Tanh-function
-    - LSTM: a more complex dstructure of gating functions. 
-## Bidirectional LSTMs <a id="bidirec_lstm"></a> 
+    - RNN: 
+        - In each cell of the recurrent layer there is only on activation function like a Tanh-function. 
+        - They transport only **one type of information** through the whole network:
+            - hidden state --> short-term memory
+    - LSTM: 
+        - More complex structure of gating functions. Instead of having a single neural network layer, there are four, interacting in a very special way. - They tranport two types of information:
+            - hidden state --> short-term memory 
+            - cell state --> long-term memory
+
+    ![image14]
+
+- **The Core Idea Behind LSTMs**: 
+    - The key to LSTMs is the **cell state c<sub>t</sub>**, the horizontal line running through the top of the diagram. Runs from cell to cell. There is no nonlinear activation function. Only two linear transformations (one **addition** and one **multiplication** operation). Information will be passed from cell to cell. 
+    - There is a Gate which decides if something will be added to the cell state or not. It is composed out of a **sigmoid neural net layer** and a **pointwise multiplication** operation. 
+    - The sigmoid layer outputs numbers between zero and one, describing how much of each component should be let through. A value of zero means “let nothing through,” while a value of one means “let everything through!”
+    - An LSTM has three of these gates, to protect and control the cell state.
+    - Adding information: New information is a concatenation of **new input x<sub>t</sub>** (actual time step) and **hidden state h<sub>t-1</sub>**  (previuos time step). The **hidden state** is also the **output** of the cell (it is just a copy).
+    
+    ![image13]    
+
+- **For a better intuition**:
+    - The **cell state** makes it possible to remain information about the length of the sequence through each time step in a particular LSTM cell. It is the LSTM's **long-term memory**.
+    - The **hidden state** is analogous to the recurrent connections in a simple RNN and represents the LSTM's **short-term memory**.
+    - Each **LSTM modul** represents **a specific point in the sequence** of data (e.g. a token out of a text document).
+    - At each time step several **decisions will be made (via Sigmoid Gates)** if the information at this actual time step in the sequence is relevant for the local (hidden state) and global (cell state) context.
+    - **First two Sigmoid Gates decide** if the information from the actual time step is **relevant for the global context** (cell state) and how to combine the information into the stream.
+    - **Last Sigmoid Gate determines** if the information from the actual time step is **relevant for the local context** (hidden state / output).
+
+- Open Jupyter Notebook ```lstm_sentiment_classifier.ipynb```.
+    ### Load dependencies
+    ``` 
+    import keras
+    from keras.datasets import imdb
+    from keras.preprocessing.sequence import pad_sequences
+    from keras.models import Sequential
+    from keras.layers import Dense, Dropout, Embedding, SpatialDropout1D
+    from keras.layers import LSTM # new! 
+    from keras.callbacks import ModelCheckpoint
+    import os
+    from sklearn.metrics import roc_auc_score 
+    import matplotlib.pyplot as plt 
+    %matplotlib inline
+    ```
+    ### Set hyperparameters
+    - Same hyperparameters as for RNN (see above), exception: epochs=4 (LSTM reacts more sensitive to overfitting than a simple RNN)
+    ```
+    # output directory name:
+    output_dir = 'model_output/LSTM'
+
+    # training:
+    epochs = 4
+    batch_size = 128
+
+    # vector-space embedding: 
+    n_dim = 64 
+    n_unique_words = 10000 
+    max_review_length = 100 
+    pad_type = trunc_type = 'pre'
+    drop_embed = 0.2 
+
+    # LSTM layer architecture:
+    n_lstm = 256 
+    drop_lstm = 0.2
+
+    # dense layer architecture: 
+    # n_dense = 256
+    # dropout = 0.2
+    ```
+    ### Load data
+    ```
+    (x_train, y_train), (x_valid, y_valid) = imdb.load_data(num_words=n_unique_words) # removed n_words_to_skip
+    ```
+    ### Preprocess data
+    ```
+    x_train = pad_sequences(x_train, maxlen=max_review_length, padding=pad_type, truncating=trunc_type, value=0)
+    x_valid = pad_sequences(x_valid, maxlen=max_review_length, padding=pad_type, truncating=trunc_type, value=0)
+    ```
+    ### Design neural network architecture
+    ```
+    model = Sequential()
+    model.add(Embedding(n_unique_words, n_dim, input_length=max_review_length)) 
+    model.add(SpatialDropout1D(drop_embed))
+    model.add(LSTM(n_lstm, dropout=drop_lstm))
+    # model.add(Dense(n_dense, activation='relu')) 
+    # model.add(Dropout(dropout))
+    model.add(Dense(1, activation='sigmoid'))
+
+    model.summary() 
+
+    RESULTS:
+    ------------
+    _________________________________________________________________
+    Layer (type)                 Output Shape              Param #   
+    =================================================================
+    embedding_1 (Embedding)      (None, 100, 64)           640000    
+    _________________________________________________________________
+    spatial_dropout1d_1 (Spatial (None, 100, 64)           0         
+    _________________________________________________________________
+    lstm_1 (LSTM)                (None, 256)               328704    
+    _________________________________________________________________
+    dense_1 (Dense)              (None, 1)                 257       
+    =================================================================
+    Total params: 968,961
+    Trainable params: 968,961
+    Non-trainable params: 0
+    ```
+    ### Compile model
+    ```
+    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+    modelcheckpoint = ModelCheckpoint(filepath=output_dir+"/weights.{epoch:02d}.hdf5")
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    ```
+    ### Train!
+    ```
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1, validation_data=(x_valid, y_valid), callbacks=[modelcheckpoint])
+
+    RESULTS:
+    ------------
+    Epoch 4/4
+    25000/25000 [==============================] - 49s 2ms/step - loss: 0.2018 - acc: 0.9235 - val_loss: 0.3690 - val_acc: 0.8454
+    ```
+    ### Evaluate
+    ```
+    model.load_weights(output_dir+"/weights.02.hdf5") 
+    y_hat = model.predict_proba(x_valid)
+    plt.hist(y_hat)
+    _ = plt.axvline(x=0.5, color='orange')
+    ```
+
+    ![image15]
+    ```
+
+    "{:0.2f}".format(roc_auc_score(y_valid, y_hat)*100.0)
+
+    RESULTS:
+    ------------
+    '92.76'
+    ```
+
+## Bidirectional LSTMs (Bi-LSTMs) <a id="bidirec_lstm"></a> 
+- Bidirectional LSTMs enable a Backpropagation in both directions (backward and forward) of a one dimensional input:
+    - a normal Backpropagation (e.g. from the end of a text review to the beginning)
+    - a 'backward' Backpropagation (e.g. from the beginning to the end of a text review)
+- Bi-LSTMs learn to interprete patterns before and after a token.
+- Consequences: Doubling of computational effort but increase in accuracy.
+- Bi-LSTMs are popular in modern NLP applications. 
+- Open Jupyter Notebook ```bi_lstm_sentiment_classifier.ipynb```.
+    ### Adapt LSTM code
+    - Use the LSTM code from above.
+    - Only change: Put the LSTM layer in a Bidirectional-Wrapper.
+    ```
+    from keras.layers import LSTM
+    from keras.layers.wrappers import Bidirectional # new! 
+
+    model = Sequential()
+    model.add(Embedding(n_unique_words, n_dim, input_length=max_review_length)) 
+    model.add(SpatialDropout1D(drop_embed))
+    model.add(Bidirectional(LSTM(n_lstm, dropout=drop_lstm)))
+    model.add(Dense(1, activation='sigmoid'))
+    ```
+    ### Result:
+    - Higher validation accuracy of **86%** (simple LSTM: val_acc=85%)
+    - Higher ROC-AUC: 93.5% (simple LSTM: 92.8%)
+    - In this repo: Bi-LSTM is the 2nd best architecture behind the Convolutional architecture.
+
 ## Stacked Recurrent Models <a id="stacked_rnn"></a>  
-## Seq2seq and Attention <a id="seq2seq_attentiom"></a>  
+- Check additional information [What are the advantages of stacking multiple LSTMs?](https://stats.stackexchange.com/questions/163304/what-are-the-advantages-of-stacking-multiple-lstms)
+-
+- Stacking of layers for RNN type architectures is not as simple as for FC or CNN networks.
+- Additional layers (as usual) enable learning of more complex representations
+
+    ![image16]
+
+- Open Jupyter Notebook ```stacked_bi_lstm_sentiment_classifier.ipynb```
+    ### Adapt LSTM code
+    - Use the Bi-LSTM code from above.
+    - Only Changes: Add a 2nd Bidirectional-Wrapper and set return_sequences=True
+    ```
+    from keras.layers import LSTM
+    from keras.layers.wrappers import Bidirectional # new! 
+
+    model = Sequential()
+    model.add(Embedding(n_unique_words, n_dim, input_length=max_review_length)) 
+    model.add(SpatialDropout1D(drop_embed))
+    model.add(Bidirectional(LSTM(n_lstm_1, dropout=drop_lstm, 
+                                return_sequences=True))) 
+    model.add(Bidirectional(LSTM(n_lstm_2, dropout=drop_lstm)))
+    model.add(Dense(1, activation='sigmoid'))
+    ```
+    ### Result:
+    - Higher validation accuracy of **88%** (Bi-LSTM: val_acc=86%)
+    - Higher ROC-AUC: 95.0% (Bi-LSTM: 93.5%)
+    - In this repo: Bi-LSTM is the 2nd best architecture behind the Convolutional architecture.
+
+## seq2eq and Attention <a id="seq2seq_attentiom"></a>  
+### Seq2Seq
+- Sequence-to-Sequence models consist of an **RNN-encoder**, a **context vector** and an **RNN-decoder** 
+- **Encoder** takes an input sequence (letters, words, images, etc.) 
+- **Decoder** generates output 
+- **Context Vector**: Vector of numbers, which were encoded by the encoder. Typical embedding dimensions: 256 or 512. This can lead to overfitting if phrases are short (solution: Attention).
+
+- Useful for:
+    - Neural Machine translation (NMT), e.g. Google Translate
+    - Questions and answers
+
+    ![image17]
+
+### Attention
+- Context vector consists of all hidden states (here: h1, h2, h3) and not only of the last one
+- Benefit: flexible context size
+- --> Longer sequences can have longer context vectors, to capture the information from the input.
+- --> Better correlation between words of input sequence and the different hidden: states h1 --> 1st word, h2 --> 2nd word, etc.
+- --> Last hidden state has (a bit of) information about the preceeded sequence.
+
+    ![image18]
+
+### The Whole Attention Process
+1. **The Embedding process** 
+
+    ![image19]
+
+2. **The Encoding Process**
+
+    ![image20]
+
+3. **) The Decoding Phase**: 
+    
+    1. **Seq2Seq w/o Attention**: Only the last hidden state will be analyzed
+
+    ![image21]
+
+    2. **Seq-2eq with Attention**: Create a new context vector via scoring
+
+    ![image22]
+
+    - **The Scoring Process**
+
+    ![image23]
+
+- Annotation: There are two Scoring approaches for Attention (see Udacity - Deep Learning for more information)
+
+    - Additive Attention
+
+    ![image24]
+
+    - Multiplicative Attention
+
+    ![image25]
+
+
 ## Transfer Learning in NLP <a id="transfer_learn_nlp"></a>  
+- Transfer Learning is not only a key tool for Machine Vision, but also for NLP.
+- Some Open Source resources: 
+    - ULMFiT (Universal Language Model Fine-Tuning)
+        - [Understanding ULMFiT — The Shift Towards Transfer Learning in NLP](https://towardsdatascience.com/understanding-ulmfit-and-elmo-the-shift-towards-transfer-learning-in-nlp-b5d8e2e3f664)
+        - [Universal Language Model Fine-tuning for Text Classification](https://arxiv.org/pdf/1801.06146.pdf)
+        - [Universal Language Model Fine-tuning](https://paperswithcode.com/method/ulmfit)
+    - ELMo (Embeddings from Language Models)
+        - [ELMo weights](https://allennlp.org/elmo)
+        - [A Step-by-Step NLP Guide to Learn ELMo for Extracting Features from Text](https://www.analyticsvidhya.com/blog/2019/03/learn-to-use-elmo-to-extract-features-from-text/)
+    - BERT (Bi-Directional Encoder Representation from Transformers)
+        - [BERT Explained: State of the art language model for NLP](https://towardsdatascience.com/bert-explained-state-of-the-art-language-model-for-nlp-f8b21a9b6270)
+        - [Open Sourcing BERT: State-of-the-Art Pre-training for Natural Language Processing](https://ai.googleblog.com/2018/11/open-sourcing-bert-state-of-art-pre.html)
+
 
 ## Setup Instructions <a id="Setup_Instructions"></a>
 The following is a brief set of instructions on setting up a cloned repository.
