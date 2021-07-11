@@ -66,7 +66,7 @@ Please check my [Data Science - NLP](https://github.com/ddhartma/NLP-Pipelines) 
     - [Stacked Recurrent Models](#stacked_rnn) 
     - [seq2seq and Attention](#seq2seq_attentiom)
     - [Transfer Learning in NLP](#transfer_learn_nlp)
-
+-  [Non-Sequential Architectures: The Keras Functional API](#non_seq_architect)
 - [Setup Instructions](#Setup_Instructions)
 - [Acknowledgments](#Acknowledgments)
 - [Further Links](#Further_Links)
@@ -1486,6 +1486,17 @@ Take a look at the sentence:
         - [BERT Explained: State of the art language model for NLP](https://towardsdatascience.com/bert-explained-state-of-the-art-language-model-for-nlp-f8b21a9b6270)
         - [Open Sourcing BERT: State-of-the-Art Pre-training for Natural Language Processing](https://ai.googleblog.com/2018/11/open-sourcing-bert-state-of-art-pre.html)
 
+# Non-Sequential Architectures: The Keras Functional API <a id="non_seq_architect"></a>
+- Istead Using n the Keras class **Sequential()** use the **Model** class of Keras
+- Non sequential model allow infinite network architectures and more creative networks. However, they are more complex.
+- Example below: Three ConvNets in parallel, which take a word vector from the embedding layer. 
+- One ConvNet is specialized on the recognition of word vector pairs.
+- One ConvNet is specialized on the recognition of three word vectors.
+- One ConvNet is specialized on the recognition of four word vectors.
+- Then all three streams will be concated and transported to two fully connected layers and a sgmoid layer at the end.
+- Check out [multi_convnet_sentiment_classifier.ipynb](https://github.com/the-deep-learners/deep-learning-illustrated/blob/master/notebooks/multi_convnet_sentiment_classifier.ipynb) for implementation.
+
+    ![image26]
 
 ## Setup Instructions <a id="Setup_Instructions"></a>
 The following is a brief set of instructions on setting up a cloned repository.
