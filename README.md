@@ -80,84 +80,84 @@ Please check my [Data Science - NLP](https://github.com/ddhartma/NLP-Pipelines) 
   - [Beautiful Soup](https://www.crummy.com/software/BeautifulSoup/bs4/doc/)
 
 - Request a web page
-  ```
+  ```python
   import requests
   # fetch web page
   r = requests.get('https://www.udacity.com/courses/all')
   ```
 
   Downloaded successfully (status = 200)
-  ```
+  ```python
   r.status_code
   ```
 - Parsing a Page with Beautifulsoup
-  ```
+  ```python
   from bs4 import BeautifulSoup
   soup = BeautifulSoup(r.text, "lxml")
   soup.text
   ```
 
   Print with readable indent
-  ```
+  ```python
   print(soup.prettify())
   ```
 
   List all tags that are nested
-  ```
+  ```python
   list(soup.children)
   ```
 
   List children of children
-  ```
+  ```python
   html = list(soup.children)[2]
   body = list(html.children)[3]
   p = list(body.children)[1]
   ```
 
   Get text from children
-  ```
+  ```python
   p.get_text()
   ```
 - Finding all instances of a tag at once
-  ```
+  ```python
   soup.find_all('p')
   ```
 
   Use list indexing, it to extract text:
-  ```
+  ```python
   soup.find_all('p')[0].get_text()
   ```
 
   If only first p instance is needed
-  ```
+  ```python
   soup.find('p')
   ```
 
 - Searching for tags by class and id
   Search for any ```p``` tag that has the ```class='outer-text'```
-  ```
+  ```python
   soup.find_all('p', class_='outer-text')
   ```
 
   Search for any tag that has the ```class='outer-text'```
-  ```
+  ```python
   soup.find_all(class_="outer-text")
   ```
 
   Find id
-  ```
+  ```python
   soup.find_all(id="first")
   ```
 
   CSS selectors to find all the p tags in a page that are inside of a div
-  ```
+  ```python
   soup.select("div p")
   ```
 ## Tokenization <a id="tokenization"></a> 
 - Open notebook ```tokenization.ipynb``` to handle text tokenization
 - Tokenization is simply splitting text into sentences or a sentence into a sequence of words.
 - Simple method: ```split()```
-  ```
+  ```python
   # Split text into words
   words = text.split()
   print(words)
@@ -166,13 +166,13 @@ Please check my [Data Science - NLP](https://github.com/ddhartma/NLP-Pipelines) 
 
   - It is smarter e.g. in terms of punctuation ['Dr.', 'Smith', 'graduated', ... , '.']
   - Split text into words
-    ```
+    ```python
     from nltk.tokenize import word_tokenize
     # split text into words using NLTK
     words = word_tokenize(text)
     ```
   - Split text into sentences (e.g. for translation)
-    ```
+    ```python
     from nltk.tokenize import sent_tokenize
     # split text into sentences using NLTK
     sentences = sent_tokenize(text)
@@ -184,7 +184,7 @@ Please check my [Data Science - NLP](https://github.com/ddhartma/NLP-Pipelines) 
 ## Normalization <a id="normalization"></a>  
 - Open notebook ```normalization.ipynb``` to handle text normalization
 - ***Case Normalization***: In Machine Learning it does not make sense to differentiate between 'car', 'Car' and 'CAR'. These all three words have the same meaning. Therefore: Normalize all words to lower case
-  ```
+  ```python
   text = text.lower()
   ```
 - Pay attention: For example in German language lower case and upper case of words change the meaning ("general" like "allgemein" or "General"). Normalization is not always good.
@@ -192,7 +192,7 @@ Please check my [Data Science - NLP](https://github.com/ddhartma/NLP-Pipelines) 
 ## Removing Interpunctuations <a id="rem_interpunct"></a> 
 - Open notebook ```normalization.ipynb``` to handle text normalization
 - ***Punctual Removal***: Dependenfing on the NLP task, one wants to remove special characters like periods, question marks, exclamation points and only keep letters of the alphabet and maybe numbers (especially usefull for document classification and clustering where low level details do not matter a lot)
-  ```
+  ```python
   import re
   # Remove punctuation from text and
   # only keep letters of the alphabet and maybe numbers
@@ -208,13 +208,13 @@ Please check my [Data Science - NLP](https://github.com/ddhartma/NLP-Pipelines) 
 - Stop words are uninformative words like ***is. our, the, in, at, ...*** that do not add a lot of meaning to a sentence.
 - Remove them to reduce the vocabulary size (complexity of later procedures)
 - [NLTK](http://www.nltk.org/book/) library  can identify stop words
-  ```
+  ```python
   # List stop words
   from nltk.corpus import stopwords
   print(stopwords.words("english"))
   ```
 - Remove stop words with a Python list comprehension with a filtering condition
-  ```
+  ```python
   # Remove stop words
   words = [w for w in words if w not in stopwords.words("english")]
   ```
@@ -233,7 +233,7 @@ Please check my [Data Science - NLP](https://github.com/ddhartma/NLP-Pipelines) 
 
 
 - PorterStemmer (remove stop words beforehand)
-  ```
+  ```python
   from nltk.stem.porter import PorterStemmer
 
   # Reduce words to their stem
@@ -244,7 +244,7 @@ Please check my [Data Science - NLP](https://github.com/ddhartma/NLP-Pipelines) 
 - In this case the transformation uses a ***dictionary*** to map different variants of a word back to its root.
 - With this approach, we are able to reduce non-trivial inflections such as 'is', 'was', 'were', back to the root 'be'.
 - [NLTK](http://www.nltk.org/book/) uses the default lemmatizer Wordnet database.
-  ```
+  ```python
   from nltk.stem.wordnet import WordNetLemmatizer
 
   # Reduce words to their root form
@@ -253,7 +253,7 @@ Please check my [Data Science - NLP](https://github.com/ddhartma/NLP-Pipelines) 
   ```
 
 -  A lemmatizer needs to know about the part of speech for each word it's trying to transform. In this case, WordNetLemmatizer defaults to nouns, but one can override that by specifying the **pos** parameter. Let's pass in 'v' for verbs.
-  ```
+  ```python
   Lemmatize verbs by specifying pos
   lemmed = [WordNetLemmatizer().lemmatize(w, pos='v') for w in lemmed]
   print(lemmed)
@@ -281,7 +281,7 @@ Please check my [Data Science - NLP](https://github.com/ddhartma/NLP-Pipelines) 
     - Tri-gram: **New York City**
 
     ### Load necessary libraries
-    ```
+    ```python
     import nltk
     from nltk import word_tokenize, sent_tokenize
     from nltk.corpus import stopwords
@@ -297,12 +297,12 @@ Please check my [Data Science - NLP](https://github.com/ddhartma/NLP-Pipelines) 
     from gensim.models.word2vec import Word2Vec
     ``` 
     ### Tokenization step 
-    ```
+    ```python
     # a convenient method that handles newlines, as well as tokenizing sentences and words in one shot
     gberg_sents = gutenberg.sents()
     ```
     ### Handle bigram collocations
-    ```
+    ```python
     # Train a detector: how often occur word pairs in relation to single occurences of both words.
     phrases = Phrases(gberg_sents) 
     
@@ -336,7 +336,7 @@ Please check my [Data Science - NLP](https://github.com/ddhartma/NLP-Pipelines) 
     }
     ```
     ### Tokenize + Bigram a new sentence
-    ```
+    ```python
     # Tokenize via split method
     tokenized_sentence = "Jon lives in New York City".split()
     print(tokenized_sentence)
@@ -353,7 +353,7 @@ Please check my [Data Science - NLP](https://github.com/ddhartma/NLP-Pipelines) 
 ## Example for a combined NLP preprocessing <a id="exp_preprocess"></a> 
 - Open Jupyter Notebook ```natural_language_preprocessing```
 - Apply Normalization and removal of interpunctuation 
-    ```
+    ```python
     # - leave in stop words ("indicative of sentiment")
     # - no stemming ("model learns similar representations of words of the same stem when data suggests it")
     # - apply normalization
@@ -391,7 +391,7 @@ Please check my [Data Science - NLP](https://github.com/ddhartma/NLP-Pipelines) 
     }
     ```
     ### Create corpus with cleaned sentences
-    ```
+    ```python
     clean_sents = []
     for s in lower_sents:
         clean_sents.append(lower_bigram[s])
@@ -469,7 +469,7 @@ After cleaning the text corpus one can start with word2vec operations.
 - Open Jupyter Notebook ```natural_language_preprocessing```
 
     ### Excute word2vec with one single command:
-    ```
+    ```python
     model = Word2Vec(sentences=clean_sents, size=64, 
                   sg=1, window=10, iter=5,
                   min_count=10, workers=4)
@@ -486,11 +486,11 @@ After cleaning the text corpus one can start with word2vec operations.
     - **workers**: number of processor units used for training (if CPU has 8 processsor units) than 8 is the maximum value. If you reduce this number, you have capacity left for other tasks.
     - **model.save...**: To save your trained model
     ### Explore the model
-    ```
+    ```python
     # Load your trained model
     model = gensim.models.Word2Vec.load('clean_gutenberg_model.w2v') 
     ```
-    ```
+    ```python
     # How many words are in the vocabulary?
     len(model.wv.vocab) 
 
@@ -498,7 +498,7 @@ After cleaning the text corpus one can start with word2vec operations.
     ------------
     10329
     ```
-    ```
+    ```python
     # Get the vector coordinates for 'dog' --> 64 dimensions
     model.wv['dog']
 
@@ -518,7 +518,7 @@ After cleaning the text corpus one can start with word2vec operations.
         0.5465321 ,  0.29695514,  0.00986911, -0.2450937 , -0.19344331,
         0.3541134 ,  0.3426432 , -0.10496043,  0.00543602], dtype=float32)
     ```
-    ```
+    ```python
     # Get similar words
     model.wv.most_similar('father', topn=3)
 
@@ -528,7 +528,7 @@ After cleaning the text corpus one can start with word2vec operations.
     ('brother', 0.7275018692016602),
     ('sister', 0.7177823781967163)]
     ```
-    ```
+    ```python
     # Get the word which fits at least in a sequence 
     model.wv.doesnt_match("mother father sister brother dog".split())
 
@@ -537,7 +537,7 @@ After cleaning the text corpus one can start with word2vec operations.
     'dog'
     ```
     ### Apply some arithmetics: **v<sub>father</sub> - v<sub>man</sub> + v<sub>woman</sub>** 
-    ```
+    ```python
     # Arithmetics
     model.wv.most_similar(positive=['father', 'woman'], negative=['man']) 
 
@@ -560,7 +560,7 @@ After cleaning the text corpus one can start with word2vec operations.
 - Useful tool: **t-distributed stochastic neighbour embedding (t-SNE)**
 - Example: Projection of 64 dimensional word vector space down to 2 dimensions
     ### Reduce word vector dimensionality with t-SNE
-    ```
+    ```python
     tsne = TSNE(n_components=2, n_iter=1000)
     X_2d = tsne.fit_transform(model.wv[model.wv.vocab])
     coords_df = pd.DataFrame(X_2d, columns=['x','y'])
@@ -570,7 +570,7 @@ After cleaning the text corpus one can start with word2vec operations.
     - **n_components**: number of output dimensions 
     - **n_iter**: number of iterations over the input data 
     ### Visualize
-    ```
+    ```python
     _ = coords_df.plot.scatter('x', 'y', figsize=(12,12), 
                            marker='.', s=10, alpha=0.2)
     ```
@@ -579,7 +579,7 @@ After cleaning the text corpus one can start with word2vec operations.
     Scatter plot
 
 - For a better visualization use **bokeh** library (see page 265)
-    ```
+    ```python
     output_notebook()
     subset_df = coords_df.sample(n=5000)
     p = figure(plot_width=800, plot_height=800)
@@ -654,7 +654,7 @@ After cleaning the text corpus one can start with word2vec operations.
     - trunc_type: Cutting type for longer reviews --> 'pre' or 'post'
     - n_dense: number of neurons of the dense hidden layer
     - dropout: ratio of dropped out neurons per random 
-    ```
+    ```python
     import keras
     from keras.datasets import imdb # new! 
     from keras.preprocessing.sequence import pad_sequences #new!
@@ -669,7 +669,7 @@ After cleaning the text corpus one can start with word2vec operations.
     %matplotlib inline
     ``` 
     ### Set hyperparameters
-    ```
+    ```python
     # output directory name:
     output_dir = 'model_output/dense'
 
@@ -695,7 +695,7 @@ After cleaning the text corpus one can start with word2vec operations.
     - reviews with four or less stars: NEGATIVE
     - reviews with seven or more stars: POSITIVE
     - reviews with five or six stars --> are dropped (no strong review) 
-    ```
+    ```python
     (x_train, y_train), (x_valid, y_valid) = imdb.load_data(num_words=n_unique_words, 
                                                         skip_top=n_words_to_skip) 
     ```
@@ -704,7 +704,7 @@ After cleaning the text corpus one can start with word2vec operations.
 ## Examining the IMDB Data <a id="examine_imdb"></a>  
 - Open Jupyter Notebook ```dense_sentiment_classifier.ipynb```
     ### Take a look at the first 6 reviews(furst two are shown)
-    ```
+    ```python
     x_train[0:6] # 0 reserved for padding; 1 would be starting character; 2 is unknown; 3 is most common word, etc.
 
     RESULTS:
@@ -714,7 +714,7 @@ After cleaning the text corpus one can start with word2vec operations.
     ...   
     ```
     ### Check the length of the first six reviews
-    ```
+    ```python
     for x in x_train[0:6]:
         print(len(x))
 
@@ -728,7 +728,7 @@ After cleaning the text corpus one can start with word2vec operations.
     43
     ```
     ### The Labels
-    ```
+    ```python
     y_train[0:6] 
 
     RESULTS:
@@ -736,7 +736,7 @@ After cleaning the text corpus one can start with word2vec operations.
     array([1, 0, 0, 1, 0, 0])
     ```
     ### Size of training and validation set
-    ```
+    ```python
     len(x_train), len(x_valid)
 
     RESULTS:
@@ -744,7 +744,7 @@ After cleaning the text corpus one can start with word2vec operations.
     (25000, 25000)
     ```
     ### Restoring words from index (in order to read reviews)
-    ```
+    ```python
     word_index = keras.datasets.imdb.get_word_index()
     word_index = {k:(v+3) for k,v in word_index.items()}
     word_index["PAD"] = 0
@@ -776,7 +776,7 @@ After cleaning the text corpus one can start with word2vec operations.
     }
     ```
     ### The first review
-    ```
+    ```python
     x_train[0] 
 
     RESULTS:
@@ -803,7 +803,7 @@ After cleaning the text corpus one can start with word2vec operations.
     ]
     ```
     ### Convert it back to readable text
-    ```
+    ```python
     ' '.join(index_word[id] for id in x_train[0])
 
     RESULTS:
@@ -814,7 +814,7 @@ After cleaning the text corpus one can start with word2vec operations.
 ## Standardizing the Length of the Reviews <a id="standardize_imdb"></a>  
 - Open Jupyter Notebook ```dense_sentiment_classifier.ipynb```
     ### Padding and Truncating reviews
-    ```
+    ```python
     x_train = pad_sequences(x_train, maxlen=max_review_length, 
                         padding=pad_type, truncating=trunc_type, value=0)
     x_valid = pad_sequences(x_valid, maxlen=max_review_length, 
@@ -840,7 +840,7 @@ After cleaning the text corpus one can start with word2vec operations.
     - Flatten: Needed to use a fully connected layer approach
     - 1 Hidden layer
     - Output via sigmoid  
-    ```
+    ```python
     model = Sequential()
     model.add(Embedding(n_unique_words, n_dim, input_length=max_review_length))
     model.add(Flatten())
@@ -882,14 +882,14 @@ After cleaning the text corpus one can start with word2vec operations.
     ### Compile the model
     - Use **binary_crossentropy** instead of **categorical_crossentropy** (used for multi class problems)
     - Store model parameters in **modelcheckpoint** after each epoch 
-    ```
+    ```python
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
     modelcheckpoint = ModelCheckpoint(filepath=output_dir+
                                   "/weights.{epoch:02d}.hdf5")
     ```
     ### Start Training 
-    ```
+    ```python
     model.fit(x_train, y_train, 
           batch_size=batch_size, epochs=epochs, verbose=1, 
           validation_data=(x_valid, y_valid), 
@@ -902,7 +902,7 @@ After cleaning the text corpus one can start with word2vec operations.
     25000/25000 [==============================] - 2s 70us/step - loss: 0.0237 - acc: 0.9961 - val_loss: 0.5304 - val_acc: 0.8340
     ```
     ### Evaluate
-    ```
+    ```python
     # Load weights
     model.load_weights(output_dir+"/weights.02.hdf5") # NOT zero-indexed
 
@@ -924,7 +924,7 @@ After cleaning the text corpus one can start with word2vec operations.
     - The orange line marks the **threshold** (0.5) for claassification
     
     ### Calculate ROC-AUC score:
-    ```
+    ```python
     pct_auc = roc_auc_score(y_valid, y_hat)*100.0
     "{:0.2f}".format(pct_auc) 
 
@@ -938,12 +938,12 @@ After cleaning the text corpus one can start with word2vec operations.
     ### Load dependencies 
     - Same as in [Dense Network](#dense_net)
     - Additional: 
-    ```
+    ```python
     from keras.layers import SpatialDropout1D, Conv1D, GlobalMaxPooling1D # new! 
     ```
     ### Set hyperparameters
     - conv: directory to save model parameters 
-    ```
+    ```python
     # output directory name:
     output_dir = 'model_output/conv'
 
@@ -982,7 +982,7 @@ After cleaning the text corpus one can start with word2vec operations.
     - Same as in [Dense Network](#dense_net)
     
     ### Design neural network architecture 
-    ```
+    ```python
     model = Sequential()
     model.add(Embedding(n_unique_words, n_dim, input_length=max_review_length)) 
     model.add(SpatialDropout1D(drop_embed))
@@ -1029,10 +1029,8 @@ After cleaning the text corpus one can start with word2vec operations.
     - Same as in [Dense Network](#dense_net)
 
     ### Evaluate 
-
-    ```
+    ```python
     ...
-
     # Draw a histogram
     plt.hist(y_hat)
     _ = plt.axvline(x=0.5, color='orange')
@@ -1045,7 +1043,7 @@ After cleaning the text corpus one can start with word2vec operations.
     - The orange line marks the **threshold** (0.5) for claassification
     
     ### Calculate ROC-AUC score:
-    ```
+    ```python
     pct_auc = roc_auc_score(y_valid, y_hat)*100.0
     "{:0.2f}".format(pct_auc) 
 
@@ -1090,7 +1088,7 @@ Take a look at the sentence:
 
 - Open Jupyter Notebook ```rnn_sentiment_classifier.ipynb```.
     ### Load dependencies
-    ```
+    ```python
     import keras
     from keras.datasets import imdb
     from keras.preprocessing.sequence import pad_sequences
@@ -1107,7 +1105,7 @@ Take a look at the sentence:
     - max_review_length: 100, for a simple RNN it could still be too excessive due to Vanishing Gradients (better with LSTMs)
     - n_rnn: 256, recurrent layer has 256 units. This allows the RNN to identify 256 unique sequences word meanings which are relevant to analyze the  sentiment of the review. This is similar to 256 convolutional kernels in a CNN model, which specialize to identify on 256 unique three-word-groups
 
-    ```
+    ```python
     # output directory name:
     output_dir = 'model_output/rnn'
 
@@ -1131,16 +1129,16 @@ Take a look at the sentence:
     # dropout = 0.2
     ```
     ### Load data
-    ```
+    ```python
     (x_train, y_train), (x_valid, y_valid) = imdb.load_data(num_words=n_unique_words) # removed n_words_to_skip
     ```
     ### Preprocess Data
-    ```
+    ```python
     x_train = pad_sequences(x_train, maxlen=max_review_length, padding=pad_type, truncating=trunc_type, value=0)
     x_valid = pad_sequences(x_valid, maxlen=max_review_length, padding=pad_type, truncating=trunc_type, value=0)
     ```
     ### Design neural network architecture
-    ```
+    ```python
     model = Sequential()
     model.add(Embedding(n_unique_words, n_dim, input_length=max_review_length)) 
     model.add(SpatialDropout1D(drop_embed))
@@ -1169,7 +1167,7 @@ Take a look at the sentence:
     Non-trainable params: 0
     ```
     ### Compile model
-    ```
+    ```python
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
     modelcheckpoint = ModelCheckpoint(filepath=output_dir+"/weights.{epoch:02d}.hdf5")
@@ -1177,7 +1175,7 @@ Take a look at the sentence:
         os.makedirs(output_dir)
     ```
     ### Train
-    ```
+    ```python
     model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1, validation_data=(x_valid, y_valid), callbacks=[modelcheckpoint])
 
     RESULTS:
@@ -1186,7 +1184,7 @@ Take a look at the sentence:
     25000/25000 [==============================] - 17s 672us/step - loss: 0.4012 - acc: 0.8309 - val_loss: 0.5920 - val_acc: 0.7510
     ```
     ### Evaluate
-    ```
+    ```python
     model.load_weights(output_dir+"/weights.07.hdf5") 
     y_hat = model.predict_proba(x_valid)
 
@@ -1197,7 +1195,7 @@ Take a look at the sentence:
     ![image12]
 
     ### ROC AUC:
-    ```
+    ```python
     "{:0.2f}".format(roc_auc_score(y_valid, y_hat)*100.0)
 
     RESULTS:
@@ -1250,7 +1248,7 @@ Take a look at the sentence:
 
 - Open Jupyter Notebook ```lstm_sentiment_classifier.ipynb```.
     ### Load dependencies
-    ``` 
+    ```python 
     import keras
     from keras.datasets import imdb
     from keras.preprocessing.sequence import pad_sequences
@@ -1265,7 +1263,7 @@ Take a look at the sentence:
     ```
     ### Set hyperparameters
     - Same hyperparameters as for RNN (see above), exception: epochs=4 (LSTM reacts more sensitive to overfitting than a simple RNN)
-    ```
+    ```python
     # output directory name:
     output_dir = 'model_output/LSTM'
 
@@ -1289,16 +1287,16 @@ Take a look at the sentence:
     # dropout = 0.2
     ```
     ### Load data
-    ```
+    ```python
     (x_train, y_train), (x_valid, y_valid) = imdb.load_data(num_words=n_unique_words) # removed n_words_to_skip
     ```
     ### Preprocess data
-    ```
+    ```python
     x_train = pad_sequences(x_train, maxlen=max_review_length, padding=pad_type, truncating=trunc_type, value=0)
     x_valid = pad_sequences(x_valid, maxlen=max_review_length, padding=pad_type, truncating=trunc_type, value=0)
     ```
     ### Design neural network architecture
-    ```
+    ```python
     model = Sequential()
     model.add(Embedding(n_unique_words, n_dim, input_length=max_review_length)) 
     model.add(SpatialDropout1D(drop_embed))
@@ -1327,7 +1325,7 @@ Take a look at the sentence:
     Non-trainable params: 0
     ```
     ### Compile model
-    ```
+    ```python
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
     modelcheckpoint = ModelCheckpoint(filepath=output_dir+"/weights.{epoch:02d}.hdf5")
@@ -1335,7 +1333,7 @@ Take a look at the sentence:
         os.makedirs(output_dir)
     ```
     ### Train!
-    ```
+    ```python
     model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1, validation_data=(x_valid, y_valid), callbacks=[modelcheckpoint])
 
     RESULTS:
@@ -1344,7 +1342,7 @@ Take a look at the sentence:
     25000/25000 [==============================] - 49s 2ms/step - loss: 0.2018 - acc: 0.9235 - val_loss: 0.3690 - val_acc: 0.8454
     ```
     ### Evaluate
-    ```
+    ```python
     model.load_weights(output_dir+"/weights.02.hdf5") 
     y_hat = model.predict_proba(x_valid)
     plt.hist(y_hat)
@@ -1352,8 +1350,7 @@ Take a look at the sentence:
     ```
 
     ![image15]
-    ```
-
+    ```python
     "{:0.2f}".format(roc_auc_score(y_valid, y_hat)*100.0)
 
     RESULTS:
@@ -1372,7 +1369,7 @@ Take a look at the sentence:
     ### Adapt LSTM code
     - Use the LSTM code from above.
     - Only change: Put the LSTM layer in a Bidirectional-Wrapper.
-    ```
+    ```python
     from keras.layers import LSTM
     from keras.layers.wrappers import Bidirectional # new! 
 
@@ -1399,7 +1396,7 @@ Take a look at the sentence:
     ### Adapt LSTM code
     - Use the Bi-LSTM code from above.
     - Only Changes: Add a 2nd Bidirectional-Wrapper and set return_sequences=True
-    ```
+    ```python
     from keras.layers import LSTM
     from keras.layers.wrappers import Bidirectional # new! 
 
